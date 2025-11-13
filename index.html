@@ -12,14 +12,27 @@
 <body>
   <nav class="navbar">
     <div class="nav-content">
-      <div class="logo" id="logo">
+      <a href="index.html" class="logo" id="logo">
         <div class="loading-container">
           <div class="loading-bar"></div>
           <span class="loading-percent">0%</span>
         </div>
         <span class="logo-text">ToolGhor</span>
+      </a>
+      <div class="nav-right">
+        <input type="text" id="searchInput" placeholder="Search tools..." class="search-input">
+        <div class="nav-links">
+          <a href="#">Tools</a>
+          <a href="#">About</a>
+          <a href="support.html">Support</a>
+        </div>
+        <button class="hamburger" id="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
-      <div class="nav-links">
+      <div class="mobile-menu" id="mobileMenu">
         <a href="#">Tools</a>
         <a href="#">About</a>
         <a href="support.html">Support</a>
@@ -62,14 +75,40 @@
 
         <h3>Image Tools</h3>
         <div class="actions">
-          <button id="convertImage">Convert Format</button>
+          <div class="tool-group">
+            <button id="convertImage">Convert Format</button>
+            <select id="imageFormat" class="format-select">
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
           <button id="extractText">Extract Text (OCR)</button>
         </div>
 
         <h3>Video Tools</h3>
         <div class="actions">
-          <button id="convertVideo">Convert Video</button>
-          <button id="trimVideo">Trim Video</button>
+          <div class="tool-group">
+            <button id="convertVideo">Convert Video</button>
+            <select id="videoFormat" class="format-select">
+              <option value="mp4">MP4</option>
+              <option value="webm">WebM</option>
+              <option value="avi">AVI</option>
+            </select>
+          </div>
+          <div class="video-trim-section">
+            <button id="trimVideo">Trim Video</button>
+            <div class="time-inputs">
+              <div class="time-group">
+                <label>Start</label>
+                <input type="time" id="startTime" step="1" value="00:00:00">
+              </div>
+              <div class="time-group">
+                <label>End</label>
+                <input type="time" id="endTime" step="1" value="00:01:00">
+              </div>
+            </div>
+          </div>
         </div>
 
         <h3>Archive Tools</h3>

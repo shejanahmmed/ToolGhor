@@ -7,9 +7,105 @@ const clearQueue = document.getElementById('clearQueue');
 const queueInfo = document.getElementById('queueInfo');
 const statusText = document.getElementById('status');
 const prog = document.getElementById('prog');
+const searchInput = document.getElementById('searchInput');
 
 let queue = [];
 let ffmpeg = null;
+
+// Tool definitions for search
+const tools = [
+  { id: 'mergePdf', name: 'Merge PDFs', keywords: ['merge', 'combine', 'join', 'pdf', 'unite'] },
+  { id: 'imagesToPdf', name: 'Images to PDF', keywords: ['image', 'convert', 'pdf', 'img', 'picture', 'photo'] },
+  { id: 'pdfToImages', name: 'PDF to Images', keywords: ['pdf', 'image', 'convert', 'extract', 'img', 'picture'] },
+  { id: 'rotatePdf', name: 'Rotate PDF', keywords: ['rotate', 'turn', 'pdf', 'orientation'] },
+  { id: 'deletePdfPages', name: 'Delete Pages', keywords: ['delete', 'remove', 'pdf', 'pages', 'page'] },
+  { id: 'reorderPdfPages', name: 'Reorder Pages', keywords: ['reorder', 'rearrange', 'pdf', 'pages', 'sort'] },
+  { id: 'convertImage', name: 'Convert Format', keywords: ['convert', 'image', 'format', 'png', 'jpg', 'webp'] },
+  { id: 'extractText', name: 'Extract Text (OCR)', keywords: ['extract', 'text', 'ocr', 'read', 'scan'] },
+  { id: 'convertVideo', name: 'Convert Video', keywords: ['convert', 'video', 'format', 'mp4', 'webm', 'avi'] },
+  { id: 'trimVideo', name: 'Trim Video', keywords: ['trim', 'cut', 'video', 'clip', 'edit'] },
+  { id: 'createZip', name: 'Create ZIP', keywords: ['create', 'zip', 'archive', 'compress'] },
+  { id: 'extractZip', name: 'Extract ZIP', keywords: ['extract', 'unzip', 'decompress', 'archive'] }
+];
+
+// Fuzzy search function
+function fuzzyMatch(query, text) {
+  query = query.toLowerCase();
+  text = text.toLowerCase();
+  
+  let queryIndex = 0;
+  let textIndex = 0;
+  
+  while (queryIndex < query.length && textIndex < text.length) {
+    if (query[queryIndex] === text[textIndex]) {
+      queryIndex++;
+    }
+    textIndex++;
+  }
+  
+  return queryIndex === query.length;
+}
+
+// Search tools function
+function searchTools(query) {
+  if (!query.trim()) return tools;
+  
+  return tools.filter(tool => {
+    const searchText = [tool.name, ...tool.keywords].join(' ');
+    return fuzzyMatch(query, searchText) || searchText.includes(query.toLowerCase());
+  });
+}
+
+// Filter tools display
+function filterTools(matchedTools) {
+  const allSections = document.querySelectorAll('h3');
+  const allButtons = document.querySelectorAll('.actions button');
+  
+  // Hide all tools first
+  allButtons.forEach(btn => {
+    btn.style.display = 'none';
+  });
+  
+  // Hide all sections
+  allSections.forEach(section => {
+    if (['PDF Tools', 'Image Tools', 'Video Tools', 'Archive Tools'].includes(section.textContent)) {
+      section.style.display = 'none';
+      section.nextElementSibling.style.display = 'none';
+    }
+  });
+  
+  // Show matched tools
+  const visibleSections = new Set();
+  matchedTools.forEach(tool => {
+    const btn = document.getElementById(tool.id);
+    if (btn) {
+      btn.style.display = 'inline-block';
+      
+      // Show parent section
+      const section = btn.closest('.actions').previousElementSibling;
+      if (section && section.tagName === 'H3') {
+        section.style.display = 'block';
+        section.nextElementSibling.style.display = 'flex';
+        visibleSections.add(section.textContent);
+      }
+    }
+  });
+}
+
+// Search input handler
+searchInput.addEventListener('input', (e) => {
+  const query = e.target.value;
+  const matchedTools = searchTools(query);
+  filterTools(matchedTools);
+});
+
+// Hamburger menu toggle
+const hamburger = document.getElementById('hamburger');
+const mobileMenu = document.getElementById('mobileMenu');
+
+hamburger.addEventListener('click', () => {
+  mobileMenu.style.display = mobileMenu.style.display === 'block' ? 'none' : 'block';
+});
 
 // Animate loading percentage
 let percent = 0;
@@ -19,6 +115,11 @@ const percentInterval = setInterval(() => {
   if (percentElement) percentElement.textContent = percent + '%';
   if (percent >= 100) clearInterval(percentInterval);
 }, 100);
+
+// Initialize search on page load
+document.addEventListener('DOMContentLoaded', () => {
+  filterTools(tools); // Show all tools initially
+});
 
 // Initialize FFmpeg
 async function initFFmpeg() {
@@ -87,6 +188,7 @@ drop.addEventListener('drop', e => {
 // File input handlers
 fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 btnAdd.addEventListener('click', () => handleFiles(fileInput.files));
+drop.addEventListener('click', () => fileInput.click());
 clearQueue.addEventListener('click', () => {
   queue = [];
   renderQueue();
@@ -312,11 +414,7 @@ document.getElementById('convertImage').addEventListener('click', async () => {
     return;
   }
 
-  const format = prompt('Convert to format (png, jpg, webp):', 'png');
-  if (!['png', 'jpg', 'webp'].includes(format)) {
-    setStatus('Invalid format');
-    return;
-  }
+  const format = document.getElementById('imageFormat').value;
 
   setStatus('Converting images...');
   setProgress(10);
@@ -401,11 +499,7 @@ document.getElementById('convertVideo').addEventListener('click', async () => {
     return;
   }
 
-  const format = prompt('Convert to format (mp4, webm, avi):', 'mp4');
-  if (!['mp4', 'webm', 'avi'].includes(format)) {
-    setStatus('Invalid format');
-    return;
-  }
+  const format = document.getElementById('videoFormat').value;
 
   setStatus('Initializing video converter...');
   setProgress(5);
@@ -440,10 +534,25 @@ document.getElementById('trimVideo').addEventListener('click', async () => {
     return;
   }
 
-  const startTime = prompt('Start time (HH:MM:SS or seconds):', '00:00:00');
-  const duration = prompt('Duration (HH:MM:SS or seconds):', '00:00:10');
+  const startTime = document.getElementById('startTime').value;
+  const endTime = document.getElementById('endTime').value;
   
-  if (!startTime || !duration) return;
+  if (!startTime || !endTime) {
+    setStatus('Please set start and end times');
+    return;
+  }
+  
+  // Calculate duration from start and end times
+  const [startH, startM, startS] = startTime.split(':').map(Number);
+  const [endH, endM, endS] = endTime.split(':').map(Number);
+  const startSeconds = startH * 3600 + startM * 60 + startS;
+  const endSeconds = endH * 3600 + endM * 60 + endS;
+  const duration = endSeconds - startSeconds;
+  
+  if (duration <= 0) {
+    setStatus('End time must be after start time');
+    return;
+  }
 
   setStatus('Initializing video trimmer...');
   setProgress(5);
@@ -457,7 +566,7 @@ document.getElementById('trimVideo').addEventListener('click', async () => {
     const outputName = `trimmed.${f.name.split('.').pop()}`;
     
     await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
-    await ffmpegInstance.exec(['-i', inputName, '-ss', startTime, '-t', duration, '-c', 'copy', outputName]);
+    await ffmpegInstance.exec(['-i', inputName, '-ss', startTime, '-t', duration.toString(), '-c', 'copy', outputName]);
     
     const data = await ffmpegInstance.readFile(outputName);
     const blob = new Blob([data.buffer], { type: f.type });

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ToolGhor - File Processing Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-content">
+      <div class="logo" id="logo">
+        <div class="loading-container">
+          <div class="loading-bar"></div>
+          <span class="loading-percent">0%</span>
+        </div>
+        <span class="logo-text">ToolGhor</span>
+      </div>
+      <div class="nav-links">
+        <a href="#">Tools</a>
+        <a href="#">About</a>
+        <a href="support.html">Support</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header>
+      <h1>ToolGhor</h1>
+      <p class="small">PDF Tools • Image Converter • OCR • Video Tools • ZIP Manager</p>
+    </header>
+
+    <main class="card">
+      <section class="tool">
+        <h3>Upload Files</h3>
+        <div id="drop" class="drop" tabindex="0">
+          <div style="margin-bottom:8px; font-size:16px; font-weight:300;">Drop files here</div>
+          <label for="fileInput" class="accent-link">or choose files</label>
+          <input id="fileInput" type="file" multiple accept="application/pdf,image/*,video/*,application/zip" />
+        </div>
+
+        <div class="controls">
+          <button id="btnAdd">Add to queue</button>
+          <button id="clearQueue">Clear</button>
+          <span class="small" id="queueInfo">0 files</span>
+        </div>
+
+        <div class="file-list" id="fileList"></div>
+
+        <h3>PDF Tools</h3>
+        <div class="actions">
+          <button id="mergePdf">Merge PDFs</button>
+          <button id="imagesToPdf">Images → PDF</button>
+          <button id="pdfToImages">PDF → Images</button>
+          <button id="rotatePdf">Rotate PDF</button>
+          <button id="deletePdfPages">Delete Pages</button>
+          <button id="reorderPdfPages">Reorder Pages</button>
+        </div>
+
+        <h3>Image Tools</h3>
+        <div class="actions">
+          <button id="convertImage">Convert Format</button>
+          <button id="extractText">Extract Text (OCR)</button>
+        </div>
+
+        <h3>Video Tools</h3>
+        <div class="actions">
+          <button id="convertVideo">Convert Video</button>
+          <button id="trimVideo">Trim Video</button>
+        </div>
+
+        <h3>Archive Tools</h3>
+        <div class="actions">
+          <button id="createZip">Create ZIP</button>
+          <button id="extractZip">Extract ZIP</button>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="small">Progress</div>
+          <div class="progress"><div id="prog" class="bar"></div></div>
+        </div>
+
+        <div id="status" class="small">Ready</div>
+      </section>
+    </main>
+
+  </div>
+
+  <footer class="main-footer">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Product</h4>
+        <a href="#">PDF Tools</a>
+        <a href="#">Privacy</a>
+        <a href="#">Security</a>
+      </div>
+      <div class="footer-section">
+        <h4>Support</h4>
+        <a href="#">Help Center</a>
+        <a href="#">Contact</a>
+        <a href="#">Feedback</a>
+      </div>
+      <div class="footer-section">
+        <h4>ToolGhor</h4>
+        <a href="#">About</a>
+        <a href="#">GitHub</a>
+        <a href="#">License</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="small">© 2025 ToolGhor. All processing happens locally in your browser.</p>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://unpkg.com/pdfjs-dist/build/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@4/dist/tesseract.min.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

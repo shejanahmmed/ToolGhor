@@ -150,6 +150,30 @@ header h1{
   font-weight:300;
 }
 
+.search-wrapper{
+  position:relative;
+}
+
+.search-icon{
+  display:none;
+  background:none;
+  border:none;
+  color:var(--text);
+  cursor:pointer;
+  padding:8px;
+  border-radius:50%;
+  transition:all 0.2s ease;
+}
+
+.search-icon svg{
+  display:block;
+}
+
+.search-icon:hover{
+  background:rgba(255,255,255,0.1);
+  transform:none;
+}
+
 .search-input{
   width:200px;
   padding:8px 12px;
@@ -160,7 +184,7 @@ header h1{
   font-size:13px;
   font-family:inherit;
   outline:none;
-  transition:all 0.2s ease;
+  transition:all 0.3s ease;
 }
 
 .search-input::placeholder{
@@ -527,14 +551,31 @@ h3:first-of-type{
     display:flex;
   }
   
-  .search-input{
-    width:120px;
-    font-size:12px;
-    padding:6px 10px;
+  .search-icon{
+    display:block;
   }
   
-  .search-input:focus{
-    width:150px;
+  .search-input{
+    position:absolute;
+    right:0;
+    top:0;
+    width:0;
+    opacity:0;
+    padding:8px 0;
+    font-size:12px;
+    transform:translateX(100%);
+    transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .search-input.active{
+    width:180px;
+    opacity:1;
+    padding:8px 12px;
+    transform:translateX(0);
+  }
+  
+  .search-input.active:focus{
+    width:200px;
   }
   
   .wrap{

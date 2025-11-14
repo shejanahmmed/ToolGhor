@@ -107,6 +107,23 @@ hamburger.addEventListener('click', () => {
   mobileMenu.style.display = mobileMenu.style.display === 'block' ? 'none' : 'block';
 });
 
+// Mobile search toggle
+const searchIcon = document.getElementById('searchIcon');
+
+searchIcon.addEventListener('click', () => {
+  searchInput.classList.toggle('active');
+  if (searchInput.classList.contains('active')) {
+    searchInput.focus();
+  }
+});
+
+// Close search on blur
+searchInput.addEventListener('blur', () => {
+  if (!searchInput.value) {
+    searchInput.classList.remove('active');
+  }
+});
+
 // Animate loading percentage
 let percent = 0;
 const percentElement = document.querySelector('.loading-percent');
@@ -433,12 +450,13 @@ document.getElementById('convertImage').addEventListener('click', async () => {
         ctx.drawImage(img, 0, 0);
         
         const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`;
+        const quality = format === 'jpg' ? 0.9 : undefined;
+        
         canvas.toBlob(blob => {
-          const ext = format === 'jpg' ? 'jpg' : format;
-          const name = f.name.replace(/\.[^.]+$/, `.${ext}`);
+          const name = f.name.replace(/\.[^.]+$/, `.${format}`);
           saveAs(blob, name);
           resolve();
-        }, mimeType, 0.9);
+        }, mimeType, quality);
       };
       img.src = URL.createObjectURL(f);
     });

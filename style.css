@@ -528,11 +528,13 @@ h3:first-of-type{
   }
   
   .search-input{
-    width:150px;
+    width:120px;
+    font-size:12px;
+    padding:6px 10px;
   }
   
   .search-input:focus{
-    width:180px;
+    width:150px;
   }
   
   .wrap{

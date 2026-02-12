@@ -217,6 +217,28 @@ clearQueue.addEventListener('click', () => {
 function setProgress(p) { prog.style.width = `${p}%`; }
 function setStatus(t) { statusText.textContent = t; }
 
+// Canvas helpers
+function canvasToBlob(canvas, mimeType = 'image/png', quality) {
+  return new Promise(resolve => {
+    canvas.toBlob(blob => resolve(blob), mimeType, quality);
+  });
+}
+
+async function imageFileToPngBlob(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(blob => resolve(blob), 'image/png');
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 // PDF Tools
 document.getElementById('mergePdf').addEventListener('click', async () => {
   const pdfFiles = queue.filter(f => f.type === 'application/pdf');
@@ -262,13 +284,22 @@ document.getElementById('imagesToPdf').addEventListener('click', async () => {
   let processed = 0;
 
   for (const f of imgs) {
-    const arr = await f.arrayBuffer();
-    const img = f.type === 'image/png'
-      ? await pdfDoc.embedPng(arr)
-      : await pdfDoc.embedJpg(arr);
+    let embeddedImage;
 
-    const page = pdfDoc.addPage([img.width, img.height]);
-    page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+    if (f.type === 'image/png' || f.type === 'image/jpeg') {
+      const arr = await f.arrayBuffer();
+      embeddedImage = f.type === 'image/png'
+        ? await pdfDoc.embedPng(arr)
+        : await pdfDoc.embedJpg(arr);
+    } else {
+      // Fallback for formats like WebP, GIF, BMP: rasterize to PNG via canvas first
+      const pngBlob = await imageFileToPngBlob(f);
+      const pngBuffer = await pngBlob.arrayBuffer();
+      embeddedImage = await pdfDoc.embedPng(pngBuffer);
+    }
+
+    const page = pdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
+    page.drawImage(embeddedImage, { x: 0, y: 0, width: embeddedImage.width, height: embeddedImage.height });
 
     processed++;
     setProgress(5 + Math.floor((processed / imgs.length) * 90));
@@ -291,28 +322,38 @@ document.getElementById('pdfToImages').addEventListener('click', async () => {
   setStatus('Converting PDF to images...');
   setProgress(10);
 
-  let processed = 0;
+  // Track progress across all pages of all PDFs
+  let totalPages = 0;
+  const pdfDocs = [];
 
   for (const f of pdfs) {
     const arr = await f.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
-    const page = await pdf.getPage(1);
+    pdfDocs.push({ file: f, pdf });
+    totalPages += pdf.numPages;
+  }
 
-    const viewport = page.getViewport({ scale: 1.5 });
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+  let processedPages = 0;
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+  for (const { file, pdf } of pdfDocs) {
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
 
-    canvas.toBlob(blob => {
-      saveAs(blob, f.name.replace(/\.pdf$/, '.png'));
-    });
+      await page.render({ canvasContext: ctx, viewport }).promise;
 
-    processed++;
-    setProgress(10 + Math.floor((processed / pdfs.length) * 90));
+      const blob = await canvasToBlob(canvas, 'image/png');
+      const baseName = file.name.replace(/\.pdf$/i, '');
+      saveAs(blob, `${baseName}_page${pageNumber}.png`);
+
+      processedPages++;
+      setProgress(10 + Math.floor((processedPages / totalPages) * 90));
+    }
   }
 
   setStatus('Images saved');
@@ -410,8 +451,25 @@ document.getElementById('reorderPdfPages').addEventListener('click', async () =>
     const bytes = await f.arrayBuffer();
     const sourcePdf = await PDFLib.PDFDocument.load(bytes);
     const newPdf = await PDFLib.PDFDocument.create();
-    
-    const pageIndices = newOrder.split(',').map(n => parseInt(n.trim()) - 1);
+
+    const totalPages = sourcePdf.getPageCount();
+    const rawOrder = newOrder.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !Number.isNaN(n));
+
+    // Validate page order for this PDF
+    if (!rawOrder.length) {
+      setStatus(`Invalid page order for ${f.name}`);
+      continue;
+    }
+
+    const invalidPage = rawOrder.some(n => n < 1 || n > totalPages);
+    const hasDuplicates = new Set(rawOrder).size !== rawOrder.length;
+
+    if (invalidPage || hasDuplicates) {
+      setStatus(`Invalid page order for ${f.name}`);
+      continue;
+    }
+
+    const pageIndices = rawOrder.map(n => n - 1);
     const pages = await newPdf.copyPages(sourcePdf, pageIndices);
     pages.forEach(page => newPdf.addPage(page));
 
@@ -625,7 +683,7 @@ document.getElementById('createZip').addEventListener('click', async () => {
 });
 
 document.getElementById('extractZip').addEventListener('click', async () => {
-  const zipFiles = queue.filter(f => f.name.endsWith('.zip'));
+  const zipFiles = queue.filter(f => /\.zip$/i.test(f.name));
   if (!zipFiles.length) {
     setStatus('No ZIP files in queue');
     return;

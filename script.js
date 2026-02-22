@@ -58,35 +58,45 @@ function searchTools(query) {
 
 // Filter tools display
 function filterTools(matchedTools) {
-  const allSections = document.querySelectorAll('h3');
-  const allButtons = document.querySelectorAll('.actions button');
-  
-  // Hide all tools first
-  allButtons.forEach(btn => {
-    btn.style.display = 'none';
-  });
-  
-  // Hide all sections
-  allSections.forEach(section => {
-    if (['PDF Tools', 'Image Tools', 'Video Tools', 'Archive Tools'].includes(section.textContent)) {
-      section.style.display = 'none';
-      section.nextElementSibling.style.display = 'none';
+  const sections = document.querySelectorAll('h3');
+  const actionsDivs = document.querySelectorAll('.actions');
+  const matchedIds = new Set(matchedTools.map(t => t.id));
+
+  // Hide all sections and actions initially
+  sections.forEach(s => {
+    if (['PDF Tools', 'Image Tools', 'Video Tools', 'Archive Tools'].includes(s.textContent)) {
+      s.style.display = 'none';
     }
   });
-  
-  // Show matched tools
-  const visibleSections = new Set();
+  actionsDivs.forEach(a => a.style.display = 'none');
+
+  // Hide all buttons and specialized containers
+  document.querySelectorAll('.actions > button, .tool-group, .video-trim-section').forEach(el => {
+    el.style.display = 'none';
+  });
+
   matchedTools.forEach(tool => {
     const btn = document.getElementById(tool.id);
     if (btn) {
-      btn.style.display = 'inline-block';
+      // Show the button or its container
+      let container = btn.closest('.tool-group') || btn.closest('.video-trim-section') || btn;
       
-      // Show parent section
-      const section = btn.closest('.actions').previousElementSibling;
-      if (section && section.tagName === 'H3') {
-        section.style.display = 'block';
-        section.nextElementSibling.style.display = 'flex';
-        visibleSections.add(section.textContent);
+      if (container.classList.contains('video-trim-section')) {
+        container.style.display = 'flex';
+      } else if (container.classList.contains('tool-group')) {
+        container.style.display = 'flex';
+      } else {
+        container.style.display = 'inline-block';
+      }
+
+      // Show the actions div and h3
+      const actions = btn.closest('.actions');
+      if (actions) {
+        actions.style.display = 'flex';
+        const section = actions.previousElementSibling;
+        if (section && section.tagName === 'H3') {
+          section.style.display = 'block';
+        }
       }
     }
   });
@@ -140,6 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize FFmpeg
 async function initFFmpeg() {
+  if (typeof FFmpegWASM === 'undefined') {
+    throw new Error('FFmpeg library not loaded. Please check your internet connection and refresh.');
+  }
   if (!ffmpeg) {
     const { FFmpeg } = FFmpegWASM;
     ffmpeg = new FFmpeg();
@@ -225,488 +238,592 @@ function canvasToBlob(canvas, mimeType = 'image/png', quality) {
 }
 
 async function imageFileToPngBlob(file) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const img = new Image();
+    const url = URL.createObjectURL(file);
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = img.width;
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
-      canvas.toBlob(blob => resolve(blob), 'image/png');
+      canvas.toBlob(blob => {
+        URL.revokeObjectURL(url);
+        resolve(blob);
+      }, 'image/png');
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
   });
 }
 
 // PDF Tools
 document.getElementById('mergePdf').addEventListener('click', async () => {
-  const pdfFiles = queue.filter(f => f.type === 'application/pdf');
-  if (!pdfFiles.length) {
-    setStatus('No PDFs in queue');
-    return;
+  try {
+    const pdfFiles = queue.filter(f => f.type === 'application/pdf');
+    if (!pdfFiles.length) {
+      setStatus('No PDFs in queue');
+      return;
+    }
+
+    setStatus('Merging PDFs...');
+    setProgress(5);
+
+    const mergedPdf = await PDFLib.PDFDocument.create();
+    let processed = 0;
+
+    for (const f of pdfFiles) {
+      const bytes = await f.arrayBuffer();
+      const donor = await PDFLib.PDFDocument.load(bytes);
+      const pages = await mergedPdf.copyPages(donor, donor.getPageIndices());
+      pages.forEach(p => mergedPdf.addPage(p));
+
+      processed++;
+      setProgress(5 + Math.floor((processed / pdfFiles.length) * 90));
+    }
+
+    const output = await mergedPdf.save();
+    saveAs(new Blob([output], { type: 'application/pdf' }), 'merged.pdf');
+
+    setStatus('Merge complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  setStatus('Merging PDFs...');
-  setProgress(5);
-
-  const mergedPdf = await PDFLib.PDFDocument.create();
-  let processed = 0;
-
-  for (const f of pdfFiles) {
-    const bytes = await f.arrayBuffer();
-    const donor = await PDFLib.PDFDocument.load(bytes);
-    const pages = await mergedPdf.copyPages(donor, donor.getPageIndices());
-    pages.forEach(p => mergedPdf.addPage(p));
-
-    processed++;
-    setProgress(5 + Math.floor((processed / pdfFiles.length) * 90));
-  }
-
-  const output = await mergedPdf.save();
-  saveAs(new Blob([output], { type: 'application/pdf' }), 'merged.pdf');
-
-  setStatus('Merge complete');
-  setProgress(100);
 });
 
 document.getElementById('imagesToPdf').addEventListener('click', async () => {
-  const imgs = queue.filter(f => f.type.startsWith('image/'));
-  if (!imgs.length) {
-    setStatus('No images in queue');
-    return;
-  }
-
-  setStatus('Converting images to PDF...');
-  setProgress(5);
-
-  const pdfDoc = await PDFLib.PDFDocument.create();
-  let processed = 0;
-
-  for (const f of imgs) {
-    let embeddedImage;
-
-    if (f.type === 'image/png' || f.type === 'image/jpeg') {
-      const arr = await f.arrayBuffer();
-      embeddedImage = f.type === 'image/png'
-        ? await pdfDoc.embedPng(arr)
-        : await pdfDoc.embedJpg(arr);
-    } else {
-      // Fallback for formats like WebP, GIF, BMP: rasterize to PNG via canvas first
-      const pngBlob = await imageFileToPngBlob(f);
-      const pngBuffer = await pngBlob.arrayBuffer();
-      embeddedImage = await pdfDoc.embedPng(pngBuffer);
+  try {
+    const imgs = queue.filter(f => f.type.startsWith('image/'));
+    if (!imgs.length) {
+      setStatus('No images in queue');
+      return;
     }
 
-    const page = pdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
-    page.drawImage(embeddedImage, { x: 0, y: 0, width: embeddedImage.width, height: embeddedImage.height });
+    setStatus('Converting images to PDF...');
+    setProgress(5);
 
-    processed++;
-    setProgress(5 + Math.floor((processed / imgs.length) * 90));
+    const pdfDoc = await PDFLib.PDFDocument.create();
+    let processed = 0;
+
+    for (const f of imgs) {
+      let embeddedImage;
+
+      if (f.type === 'image/png' || f.type === 'image/jpeg') {
+        const arr = await f.arrayBuffer();
+        embeddedImage = f.type === 'image/png'
+          ? await pdfDoc.embedPng(arr)
+          : await pdfDoc.embedJpg(arr);
+      } else {
+        // Fallback for formats like WebP, GIF, BMP: rasterize to PNG via canvas first
+        const pngBlob = await imageFileToPngBlob(f);
+        const pngBuffer = await pngBlob.arrayBuffer();
+        embeddedImage = await pdfDoc.embedPng(pngBuffer);
+      }
+
+      const page = pdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
+      page.drawImage(embeddedImage, { x: 0, y: 0, width: embeddedImage.width, height: embeddedImage.height });
+
+      processed++;
+      setProgress(5 + Math.floor((processed / imgs.length) * 90));
+    }
+
+    const out = await pdfDoc.save();
+    saveAs(new Blob([out], { type: 'application/pdf' }), 'images.pdf');
+
+    setStatus('Conversion complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  const out = await pdfDoc.save();
-  saveAs(new Blob([out], { type: 'application/pdf' }), 'images.pdf');
-
-  setStatus('Conversion complete');
-  setProgress(100);
 });
 
 document.getElementById('pdfToImages').addEventListener('click', async () => {
-  const pdfs = queue.filter(f => f.type === 'application/pdf');
-  if (!pdfs.length) {
-    setStatus('No PDFs in queue');
-    return;
-  }
-
-  setStatus('Converting PDF to images...');
-  setProgress(10);
-
-  // Track progress across all pages of all PDFs
-  let totalPages = 0;
-  const pdfDocs = [];
-
-  for (const f of pdfs) {
-    const arr = await f.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
-    pdfDocs.push({ file: f, pdf });
-    totalPages += pdf.numPages;
-  }
-
-  let processedPages = 0;
-
-  for (const { file, pdf } of pdfDocs) {
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      await page.render({ canvasContext: ctx, viewport }).promise;
-
-      const blob = await canvasToBlob(canvas, 'image/png');
-      const baseName = file.name.replace(/\.pdf$/i, '');
-      saveAs(blob, `${baseName}_page${pageNumber}.png`);
-
-      processedPages++;
-      setProgress(10 + Math.floor((processedPages / totalPages) * 90));
+  try {
+    const pdfs = queue.filter(f => f.type === 'application/pdf');
+    if (!pdfs.length) {
+      setStatus('No PDFs in queue');
+      return;
     }
-  }
 
-  setStatus('Images saved');
-  setProgress(100);
+    setStatus('Converting PDF to images...');
+    setProgress(10);
+
+    const zip = new JSZip();
+    let totalPages = 0;
+    const pdfDocs = [];
+
+    for (const f of pdfs) {
+      const arr = await f.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
+      pdfDocs.push({ file: f, pdf });
+      totalPages += pdf.numPages;
+    }
+
+    let processedPages = 0;
+
+    for (const { file, pdf } of pdfDocs) {
+      const baseName = file.name.replace(/\.pdf$/i, '');
+      const folder = pdfs.length > 1 ? zip.folder(baseName) : zip;
+
+      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const blob = await canvasToBlob(canvas, 'image/png');
+        folder.file(`${baseName}_page${pageNumber}.png`, blob);
+
+        processedPages++;
+        setProgress(10 + Math.floor((processedPages / totalPages) * 90));
+      }
+    }
+
+    setStatus('Generating ZIP archive...');
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    saveAs(zipBlob, 'pdf_images.zip');
+
+    setStatus('Images saved to ZIP');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
+  }
 });
 
 document.getElementById('rotatePdf').addEventListener('click', async () => {
-  const pdfs = queue.filter(f => f.type === 'application/pdf');
-  if (!pdfs.length) {
-    setStatus('No PDFs in queue');
-    return;
+  try {
+    const pdfs = queue.filter(f => f.type === 'application/pdf');
+    if (!pdfs.length) {
+      setStatus('No PDFs in queue');
+      return;
+    }
+
+    const angle = prompt('Rotation angle (90, 180, 270):', '90');
+    if (!['90', '180', '270'].includes(angle)) {
+      setStatus('Invalid angle');
+      return;
+    }
+
+    setStatus('Rotating PDF...');
+    setProgress(10);
+
+    for (const f of pdfs) {
+      const bytes = await f.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(bytes);
+      const pages = pdfDoc.getPages();
+      
+      pages.forEach(page => page.setRotation(PDFLib.degrees(parseInt(angle))));
+      
+      const output = await pdfDoc.save();
+      saveAs(new Blob([output], { type: 'application/pdf' }), `rotated_${f.name}`);
+    }
+
+    setStatus('Rotation complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  const angle = prompt('Rotation angle (90, 180, 270):', '90');
-  if (!['90', '180', '270'].includes(angle)) {
-    setStatus('Invalid angle');
-    return;
-  }
-
-  setStatus('Rotating PDF...');
-  setProgress(10);
-
-  for (const f of pdfs) {
-    const bytes = await f.arrayBuffer();
-    const pdfDoc = await PDFLib.PDFDocument.load(bytes);
-    const pages = pdfDoc.getPages();
-    
-    pages.forEach(page => page.setRotation(PDFLib.degrees(parseInt(angle))));
-    
-    const output = await pdfDoc.save();
-    saveAs(new Blob([output], { type: 'application/pdf' }), `rotated_${f.name}`);
-  }
-
-  setStatus('Rotation complete');
-  setProgress(100);
 });
 
 document.getElementById('deletePdfPages').addEventListener('click', async () => {
-  const pdfs = queue.filter(f => f.type === 'application/pdf');
-  if (!pdfs.length) {
-    setStatus('No PDFs in queue');
-    return;
-  }
+  try {
+    const pdfs = queue.filter(f => f.type === 'application/pdf');
+    if (!pdfs.length) {
+      setStatus('No PDFs in queue');
+      return;
+    }
 
-  const pagesToDelete = prompt('Pages to delete (e.g., 1,3,5 or 2-4):', '');
-  if (!pagesToDelete) return;
+    const pagesToDelete = prompt('Pages to delete (e.g., 1,3,5 or 2-4):', '');
+    if (!pagesToDelete) return;
 
-  setStatus('Deleting pages...');
-  setProgress(10);
+    setStatus('Deleting pages...');
+    setProgress(10);
 
-  for (const f of pdfs) {
-    const bytes = await f.arrayBuffer();
-    const pdfDoc = await PDFLib.PDFDocument.load(bytes);
-    const totalPages = pdfDoc.getPageCount();
-    
-    const deleteIndices = [];
-    pagesToDelete.split(',').forEach(range => {
-      if (range.includes('-')) {
-        const [start, end] = range.split('-').map(n => parseInt(n.trim()));
-        for (let i = start; i <= end; i++) {
-          if (i > 0 && i <= totalPages) deleteIndices.push(i - 1);
+    for (const f of pdfs) {
+      const bytes = await f.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(bytes);
+      const totalPages = pdfDoc.getPageCount();
+      
+      const deleteIndices = [];
+      pagesToDelete.split(',').forEach(range => {
+        if (range.includes('-')) {
+          const [start, end] = range.split('-').map(n => parseInt(n.trim()));
+          for (let i = start; i <= end; i++) {
+            if (i > 0 && i <= totalPages) deleteIndices.push(i - 1);
+          }
+        } else {
+          const page = parseInt(range.trim());
+          if (page > 0 && page <= totalPages) deleteIndices.push(page - 1);
         }
-      } else {
-        const page = parseInt(range.trim());
-        if (page > 0 && page <= totalPages) deleteIndices.push(page - 1);
-      }
-    });
+      });
 
-    deleteIndices.sort((a, b) => b - a).forEach(index => {
-      pdfDoc.removePage(index);
-    });
+      deleteIndices.sort((a, b) => b - a).forEach(index => {
+        pdfDoc.removePage(index);
+      });
 
-    const output = await pdfDoc.save();
-    saveAs(new Blob([output], { type: 'application/pdf' }), `edited_${f.name}`);
+      const output = await pdfDoc.save();
+      saveAs(new Blob([output], { type: 'application/pdf' }), `edited_${f.name}`);
+    }
+
+    setStatus('Pages deleted');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  setStatus('Pages deleted');
-  setProgress(100);
 });
 
 document.getElementById('reorderPdfPages').addEventListener('click', async () => {
-  const pdfs = queue.filter(f => f.type === 'application/pdf');
-  if (!pdfs.length) {
-    setStatus('No PDFs in queue');
-    return;
-  }
-
-  const newOrder = prompt('New page order (e.g., 3,1,2,4):', '');
-  if (!newOrder) return;
-
-  setStatus('Reordering pages...');
-  setProgress(10);
-
-  for (const f of pdfs) {
-    const bytes = await f.arrayBuffer();
-    const sourcePdf = await PDFLib.PDFDocument.load(bytes);
-    const newPdf = await PDFLib.PDFDocument.create();
-
-    const totalPages = sourcePdf.getPageCount();
-    const rawOrder = newOrder.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !Number.isNaN(n));
-
-    // Validate page order for this PDF
-    if (!rawOrder.length) {
-      setStatus(`Invalid page order for ${f.name}`);
-      continue;
+  try {
+    const pdfs = queue.filter(f => f.type === 'application/pdf');
+    if (!pdfs.length) {
+      setStatus('No PDFs in queue');
+      return;
     }
 
-    const invalidPage = rawOrder.some(n => n < 1 || n > totalPages);
-    const hasDuplicates = new Set(rawOrder).size !== rawOrder.length;
+    const newOrder = prompt('New page order (e.g., 3,1,2,4):', '');
+    if (!newOrder) return;
 
-    if (invalidPage || hasDuplicates) {
-      setStatus(`Invalid page order for ${f.name}`);
-      continue;
+    setStatus('Reordering pages...');
+    setProgress(10);
+
+    for (const f of pdfs) {
+      const bytes = await f.arrayBuffer();
+      const sourcePdf = await PDFLib.PDFDocument.load(bytes);
+      const newPdf = await PDFLib.PDFDocument.create();
+
+      const totalPages = sourcePdf.getPageCount();
+      const rawOrder = newOrder.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !Number.isNaN(n));
+
+      // Validate page order for this PDF
+      if (!rawOrder.length) {
+        setStatus(`Invalid page order for ${f.name}`);
+        continue;
+      }
+
+      const invalidPage = rawOrder.some(n => n < 1 || n > totalPages);
+      const hasDuplicates = new Set(rawOrder).size !== rawOrder.length;
+
+      if (invalidPage || hasDuplicates) {
+        setStatus(`Invalid page order for ${f.name}`);
+        continue;
+      }
+
+      const pageIndices = rawOrder.map(n => n - 1);
+      const pages = await newPdf.copyPages(sourcePdf, pageIndices);
+      pages.forEach(page => newPdf.addPage(page));
+
+      const output = await newPdf.save();
+      saveAs(new Blob([output], { type: 'application/pdf' }), `reordered_${f.name}`);
     }
 
-    const pageIndices = rawOrder.map(n => n - 1);
-    const pages = await newPdf.copyPages(sourcePdf, pageIndices);
-    pages.forEach(page => newPdf.addPage(page));
-
-    const output = await newPdf.save();
-    saveAs(new Blob([output], { type: 'application/pdf' }), `reordered_${f.name}`);
+    setStatus('Pages reordered');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  setStatus('Pages reordered');
-  setProgress(100);
 });
 
 // Image Tools
 document.getElementById('convertImage').addEventListener('click', async () => {
-  const imgs = queue.filter(f => f.type.startsWith('image/'));
-  if (!imgs.length) {
-    setStatus('No images in queue');
-    return;
+  try {
+    const imgs = queue.filter(f => f.type.startsWith('image/'));
+    if (!imgs.length) {
+      setStatus('No images in queue');
+      return;
+    }
+
+    const format = document.getElementById('imageFormat').value;
+
+    setStatus('Converting images...');
+    setProgress(10);
+
+    let processed = 0;
+
+    for (const f of imgs) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      const url = URL.createObjectURL(f);
+
+      await new Promise((resolve, reject) => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          
+          const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`;
+          const quality = format === 'jpg' ? 0.9 : undefined;
+          
+          canvas.toBlob(blob => {
+            URL.revokeObjectURL(url);
+            const name = f.name.replace(/\.[^.]+$/, `.${format}`);
+            saveAs(blob, name);
+            resolve();
+          }, mimeType, quality);
+        };
+        img.onerror = (err) => {
+          URL.revokeObjectURL(url);
+          reject(err);
+        };
+        img.src = url;
+      });
+
+      processed++;
+      setProgress(10 + Math.floor((processed / imgs.length) * 90));
+    }
+
+    setStatus('Conversion complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  const format = document.getElementById('imageFormat').value;
-
-  setStatus('Converting images...');
-  setProgress(10);
-
-  let processed = 0;
-
-  for (const f of imgs) {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    await new Promise(resolve => {
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        const mimeType = format === 'jpg' ? 'image/jpeg' : `image/${format}`;
-        const quality = format === 'jpg' ? 0.9 : undefined;
-        
-        canvas.toBlob(blob => {
-          const name = f.name.replace(/\.[^.]+$/, `.${format}`);
-          saveAs(blob, name);
-          resolve();
-        }, mimeType, quality);
-      };
-      img.src = URL.createObjectURL(f);
-    });
-
-    processed++;
-    setProgress(10 + Math.floor((processed / imgs.length) * 90));
-  }
-
-  setStatus('Conversion complete');
-  setProgress(100);
 });
 
 document.getElementById('extractText').addEventListener('click', async () => {
-  const files = queue.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-  if (!files.length) {
-    setStatus('No images or PDFs in queue');
-    return;
-  }
-
-  setStatus('Extracting text...');
-  setProgress(10);
-
-  let allText = '';
-  let processed = 0;
-
-  for (const f of files) {
-    if (f.type.startsWith('image/')) {
-      const result = await Tesseract.recognize(f, 'eng');
-      allText += `--- ${f.name} ---\n${result.data.text}\n\n`;
-    } else if (f.type === 'application/pdf') {
-      const arr = await f.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
-      
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const text = textContent.items.map(item => item.str).join(' ');
-        allText += `--- ${f.name} Page ${i} ---\n${text}\n\n`;
-      }
+  try {
+    const files = queue.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+    if (!files.length) {
+      setStatus('No images or PDFs in queue');
+      return;
     }
 
-    processed++;
-    setProgress(10 + Math.floor((processed / files.length) * 90));
+    setStatus('Extracting text...');
+    setProgress(10);
+
+    let allText = '';
+    let processed = 0;
+
+    for (const f of files) {
+      if (f.type.startsWith('image/')) {
+        const result = await Tesseract.recognize(f, 'eng');
+        allText += `--- ${f.name} ---\n${result.data.text}\n\n`;
+      } else if (f.type === 'application/pdf') {
+        const arr = await f.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          let text = textContent.items.map(item => item.str).join(' ').trim();
+          
+          // Fallback to OCR if no text layer found (scanned PDF)
+          if (text.length < 10) {
+            setStatus(`Performing OCR on ${f.name} page ${i}...`);
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            
+            const result = await Tesseract.recognize(canvas, 'eng');
+            text = result.data.text;
+          }
+          
+          allText += `--- ${f.name} Page ${i} ---\n${text}\n\n`;
+          setProgress(10 + Math.floor(((processed + (i / pdf.numPages)) / files.length) * 90));
+        }
+      }
+
+      processed++;
+      setProgress(10 + Math.floor((processed / files.length) * 90));
+    }
+
+    const blob = new Blob([allText], { type: 'text/plain' });
+    saveAs(blob, 'extracted_text.txt');
+
+    setStatus('Text extraction complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  const blob = new Blob([allText], { type: 'text/plain' });
-  saveAs(blob, 'extracted_text.txt');
-
-  setStatus('Text extraction complete');
-  setProgress(100);
 });
 
 // Video Tools
 document.getElementById('convertVideo').addEventListener('click', async () => {
-  const videos = queue.filter(f => f.type.startsWith('video/'));
-  if (!videos.length) {
-    setStatus('No videos in queue');
-    return;
+  try {
+    const videos = queue.filter(f => f.type.startsWith('video/'));
+    if (!videos.length) {
+      setStatus('No videos in queue');
+      return;
+    }
+
+    const format = document.getElementById('videoFormat').value;
+
+    setStatus('Initializing video converter...');
+    setProgress(5);
+
+    const ffmpegInstance = await initFFmpeg();
+    
+    for (const f of videos) {
+      setStatus(`Converting ${f.name}...`);
+      
+      const inputName = `input.${f.name.split('.').pop()}`;
+      const outputName = `output.${format}`;
+      
+      await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
+      await ffmpegInstance.exec(['-i', inputName, outputName]);
+      
+      const data = await ffmpegInstance.readFile(outputName);
+      const blob = new Blob([data.buffer], { type: `video/${format}` });
+      saveAs(blob, f.name.replace(/\.[^.]+$/, `.${format}`));
+      
+      await ffmpegInstance.deleteFile(inputName);
+      await ffmpegInstance.deleteFile(outputName);
+    }
+
+    setStatus('Video conversion complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  const format = document.getElementById('videoFormat').value;
-
-  setStatus('Initializing video converter...');
-  setProgress(5);
-
-  const ffmpegInstance = await initFFmpeg();
-  
-  for (const f of videos) {
-    setStatus(`Converting ${f.name}...`);
-    
-    const inputName = `input.${f.name.split('.').pop()}`;
-    const outputName = `output.${format}`;
-    
-    await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
-    await ffmpegInstance.exec(['-i', inputName, outputName]);
-    
-    const data = await ffmpegInstance.readFile(outputName);
-    const blob = new Blob([data.buffer], { type: `video/${format}` });
-    saveAs(blob, f.name.replace(/\.[^.]+$/, `.${format}`));
-    
-    await ffmpegInstance.deleteFile(inputName);
-    await ffmpegInstance.deleteFile(outputName);
-  }
-
-  setStatus('Video conversion complete');
-  setProgress(100);
 });
 
+function timeToSeconds(timeStr) {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  }
+  return 0;
+}
+
 document.getElementById('trimVideo').addEventListener('click', async () => {
-  const videos = queue.filter(f => f.type.startsWith('video/'));
-  if (!videos.length) {
-    setStatus('No videos in queue');
-    return;
-  }
+  try {
+    const videos = queue.filter(f => f.type.startsWith('video/'));
+    if (!videos.length) {
+      setStatus('No videos in queue');
+      return;
+    }
 
-  const startTime = document.getElementById('startTime').value;
-  const endTime = document.getElementById('endTime').value;
-  
-  if (!startTime || !endTime) {
-    setStatus('Please set start and end times');
-    return;
-  }
-  
-  // Calculate duration from start and end times
-  const [startH, startM, startS] = startTime.split(':').map(Number);
-  const [endH, endM, endS] = endTime.split(':').map(Number);
-  const startSeconds = startH * 3600 + startM * 60 + startS;
-  const endSeconds = endH * 3600 + endM * 60 + endS;
-  const duration = endSeconds - startSeconds;
-  
-  if (duration <= 0) {
-    setStatus('End time must be after start time');
-    return;
-  }
+    const startTimeStr = document.getElementById('startTime').value;
+    const endTimeStr = document.getElementById('endTime').value;
+    
+    if (!startTimeStr || !endTimeStr) {
+      setStatus('Please set start and end times');
+      return;
+    }
+    
+    const startSeconds = timeToSeconds(startTimeStr);
+    const endSeconds = timeToSeconds(endTimeStr);
+    const duration = endSeconds - startSeconds;
+    
+    if (duration <= 0 || isNaN(duration)) {
+      setStatus('End time must be after start time');
+      return;
+    }
 
-  setStatus('Initializing video trimmer...');
-  setProgress(5);
+    setStatus('Initializing video trimmer...');
+    setProgress(5);
 
-  const ffmpegInstance = await initFFmpeg();
-  
-  for (const f of videos) {
-    setStatus(`Trimming ${f.name}...`);
+    const ffmpegInstance = await initFFmpeg();
     
-    const inputName = `input.${f.name.split('.').pop()}`;
-    const outputName = `trimmed.${f.name.split('.').pop()}`;
-    
-    await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
-    await ffmpegInstance.exec(['-i', inputName, '-ss', startTime, '-t', duration.toString(), '-c', 'copy', outputName]);
-    
-    const data = await ffmpegInstance.readFile(outputName);
-    const blob = new Blob([data.buffer], { type: f.type });
-    saveAs(blob, `trimmed_${f.name}`);
-    
-    await ffmpegInstance.deleteFile(inputName);
-    await ffmpegInstance.deleteFile(outputName);
+    for (const f of videos) {
+      setStatus(`Trimming ${f.name}...`);
+      
+      const inputName = `input.${f.name.split('.').pop()}`;
+      const outputName = `trimmed.${f.name.split('.').pop()}`;
+      
+      await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
+      await ffmpegInstance.exec(['-i', inputName, '-ss', startTimeStr, '-t', duration.toString(), '-c', 'copy', outputName]);
+      
+      const data = await ffmpegInstance.readFile(outputName);
+      const blob = new Blob([data.buffer], { type: f.type });
+      saveAs(blob, `trimmed_${f.name}`);
+      
+      await ffmpegInstance.deleteFile(inputName);
+      await ffmpegInstance.deleteFile(outputName);
+    }
+
+    setStatus('Video trimming complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  setStatus('Video trimming complete');
-  setProgress(100);
 });
 
 // Archive Tools
 document.getElementById('createZip').addEventListener('click', async () => {
-  if (!queue.length) {
-    setStatus('No files in queue');
-    return;
+  try {
+    if (!queue.length) {
+      setStatus('No files in queue');
+      return;
+    }
+
+    setStatus('Creating ZIP...');
+    setProgress(10);
+
+    const zip = new JSZip();
+    let processed = 0;
+
+    for (const f of queue) {
+      zip.file(f.name, f);
+      processed++;
+      setProgress(10 + Math.floor((processed / queue.length) * 80));
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    saveAs(blob, 'archive.zip');
+
+    setStatus('ZIP created');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
   }
-
-  setStatus('Creating ZIP...');
-  setProgress(10);
-
-  const zip = new JSZip();
-  let processed = 0;
-
-  for (const f of queue) {
-    zip.file(f.name, f);
-    processed++;
-    setProgress(10 + Math.floor((processed / queue.length) * 80));
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  saveAs(blob, 'archive.zip');
-
-  setStatus('ZIP created');
-  setProgress(100);
 });
 
 document.getElementById('extractZip').addEventListener('click', async () => {
-  const zipFiles = queue.filter(f => /\.zip$/i.test(f.name));
-  if (!zipFiles.length) {
-    setStatus('No ZIP files in queue');
-    return;
-  }
-
-  setStatus('Extracting ZIP...');
-  setProgress(10);
-
-  for (const f of zipFiles) {
-    const zip = await JSZip.loadAsync(f);
-    const files = Object.keys(zip.files);
-    let processed = 0;
-
-    for (const filename of files) {
-      if (!zip.files[filename].dir) {
-        const blob = await zip.files[filename].async('blob');
-        saveAs(blob, filename);
-      }
-      processed++;
-      setProgress(10 + Math.floor((processed / files.length) * 90));
+  try {
+    const zipFiles = queue.filter(f => /\.zip$/i.test(f.name));
+    if (!zipFiles.length) {
+      setStatus('No ZIP files in queue');
+      return;
     }
-  }
 
-  setStatus('ZIP extraction complete');
-  setProgress(100);
+    setStatus('Extracting ZIP...');
+    setProgress(10);
+
+    for (const f of zipFiles) {
+      const zip = await JSZip.loadAsync(f);
+      const files = Object.keys(zip.files);
+      let processed = 0;
+
+      for (const filename of files) {
+        if (!zip.files[filename].dir) {
+          const blob = await zip.files[filename].async('blob');
+          saveAs(blob, filename);
+        }
+        processed++;
+        setProgress(10 + Math.floor((processed / files.length) * 90));
+      }
+    }
+
+    setStatus('ZIP extraction complete');
+    setProgress(100);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Error: ${err.message}`);
+  }
 });

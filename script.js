@@ -145,7 +145,16 @@ const percentInterval = setInterval(() => {
 
 // Initialize search on page load
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM Content Loaded');
   filterTools(tools); // Show all tools initially
+  
+  // Set PDF.js worker source to match the version in index.html
+  if (typeof pdfjsLib !== 'undefined') {
+    console.log('pdfjsLib found');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  } else {
+    console.error('pdfjsLib NOT found');
+  }
 });
 
 // Initialize FFmpeg
@@ -344,31 +353,39 @@ document.getElementById('imagesToPdf').addEventListener('click', async () => {
 });
 
 document.getElementById('pdfToImages').addEventListener('click', async () => {
+  console.log('PDF to Images clicked');
   try {
-    const pdfs = queue.filter(f => f.type === 'application/pdf');
+    const pdfs = queue.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (!pdfs.length) {
       setStatus('No PDFs in queue');
       return;
     }
 
-    setStatus('Converting PDF to images...');
-    setProgress(10);
-
-    const zip = new JSZip();
-    let totalPages = 0;
-    const pdfDocs = [];
-
-    for (const f of pdfs) {
-      const arr = await f.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
-      pdfDocs.push({ file: f, pdf });
-      totalPages += pdf.numPages;
+    if (typeof pdfjsLib === 'undefined') {
+      throw new Error('PDF conversion engine not loaded. Please wait or refresh.');
     }
 
-    let processedPages = 0;
+    setStatus('Preparing PDF documents...');
+    setProgress(5);
 
-    for (const { file, pdf } of pdfDocs) {
-      const baseName = file.name.replace(/\.pdf$/i, '');
+    const zip = new JSZip();
+    let totalPagesProcessed = 0;
+    
+    // First, calculate total pages for progress bar
+    let totalPossiblePages = 0;
+    for (const f of pdfs) {
+      const arr = new Uint8Array(await f.arrayBuffer());
+      // disableWorker: true is essential for direct file:// protocol use!
+      const pdf = await pdfjsLib.getDocument({ data: arr, disableWorker: true }).promise;
+      totalPossiblePages += pdf.numPages;
+      await pdf.destroy();
+    }
+
+    setStatus('Converting PDF to images...');
+    for (const f of pdfs) {
+      const arr = new Uint8Array(await f.arrayBuffer());
+      const pdf = await pdfjsLib.getDocument({ data: arr, disableWorker: true }).promise;
+      const baseName = f.name.replace(/\.pdf$/i, '');
       const folder = pdfs.length > 1 ? zip.folder(baseName) : zip;
 
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
@@ -382,12 +399,28 @@ document.getElementById('pdfToImages').addEventListener('click', async () => {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        const blob = await canvasToBlob(canvas, 'image/png');
+        // More robust blob conversion
+        const blob = await new Promise((resolve) => {
+          if (canvas.toBlob) {
+            canvas.toBlob(resolve, 'image/png');
+          } else {
+            // Fallback for very old/specific environments
+            const dataUrl = canvas.toDataURL('image/png');
+            const binStr = atob(dataUrl.split(',')[1]);
+            const len = binStr.length;
+            const arr = new Uint8Array(len);
+            for (let i = 0; i < len; i++) arr[i] = binStr.charCodeAt(i);
+            resolve(new Blob([arr], { type: 'image/png' }));
+          }
+        });
+
         folder.file(`${baseName}_page${pageNumber}.png`, blob);
 
-        processedPages++;
-        setProgress(10 + Math.floor((processedPages / totalPages) * 90));
+        totalPagesProcessed++;
+        setProgress(10 + Math.floor((totalPagesProcessed / totalPossiblePages) * 80));
+        setStatus(`Processing ${f.name} - Page ${pageNumber}/${pdf.numPages}`);
       }
+      await pdf.destroy();
     }
 
     setStatus('Generating ZIP archive...');
@@ -397,8 +430,9 @@ document.getElementById('pdfToImages').addEventListener('click', async () => {
     setStatus('Images saved to ZIP');
     setProgress(100);
   } catch (err) {
-    console.error(err);
+    console.error('PDF to Image Error:', err);
     setStatus(`Error: ${err.message}`);
+    setProgress(0);
   }
 });
 
@@ -613,9 +647,10 @@ document.getElementById('extractText').addEventListener('click', async () => {
       if (f.type.startsWith('image/')) {
         const result = await Tesseract.recognize(f, 'eng');
         allText += `--- ${f.name} ---\n${result.data.text}\n\n`;
-      } else if (f.type === 'application/pdf') {
-        const arr = await f.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arr }).promise;
+      } else if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) {
+        const arr = new Uint8Array(await f.arrayBuffer());
+        if (typeof pdfjsLib === 'undefined') throw new Error('PDF engine not ready');
+        const pdf = await pdfjsLib.getDocument({ data: arr, disableWorker: true }).promise;
         
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -639,6 +674,7 @@ document.getElementById('extractText').addEventListener('click', async () => {
           allText += `--- ${f.name} Page ${i} ---\n${text}\n\n`;
           setProgress(10 + Math.floor(((processed + (i / pdf.numPages)) / files.length) * 90));
         }
+        await pdf.destroy();
       }
 
       processed++;

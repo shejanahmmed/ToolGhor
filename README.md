@@ -1,158 +1,93 @@
-## ToolGhor — All‑in‑One File Utility Website
+# 🛠️ ToolGhor — All-in-One Privacy-First File Utility
 
-**Live demo**: `https://shejanahmmed.github.io/ToolGhor/`
+[![License: MIT](https://img.shields.io/badge/License-MIT-white.svg)](https://opensource.org/licenses/MIT)
+![Vanilla JS](https://img.shields.io/badge/Made%20with-Vanilla%20JS-F7DF1E.svg)
+![Client-Side](https://img.shields.io/badge/Processing-100%25%20Client--Side-brightgreen.svg)
 
-ToolGhor is a fast, lightweight, and privacy‑focused file utility website built with plain HTML, CSS, and JavaScript.  
-It runs entirely in the browser, so your files never leave your device and no data is uploaded to any server.
+**ToolGhor** is a lightweight, high-performance file utility suite designed with a "Privacy First" philosophy. It allows users to manipulate PDFs, images, and videos entirely within their own browser. No files are ever uploaded to a server, ensuring your sensitive data remains on your device.
+
+**Live Demo**: [https://shejanahmmed.github.io/ToolGhor/](https://shejanahmmed.github.io/ToolGhor/)
 
 ---
 
 ## ✨ Key Features
 
-- **PDF tools**
-  - **Merge PDFs**: Combine multiple PDF files into a single document.
-  - **Images → PDF**: Convert one or more images into a PDF file (supports PNG, JPG, WebP, GIF, BMP via client‑side processing).
-  - **PDF → Images**: Export every page of a PDF as individual PNG images.
-  - **Rotate PDF**: Rotate all pages in a PDF by 90°, 180°, or 270°.
-  - **Delete pages**: Remove specific pages or ranges (for example, `1,3,5` or `2-4`).
-  - **Reorder pages**: Change the page order (for example, `3,1,2,4`).
+### 📄 PDF Mastery
+- **Merge & Combine**: Seamlessly join multiple PDFs into a single document.
+- **PDF to Images**: Convert PDF pages into high-quality PNGs, automatically bundled into a ZIP archive.
+- **Images to PDF**: Create PDF documents from various image formats (PNG, JPG, WebP, etc.).
+- **Page Management**: Reorder pages, delete specific ranges, or rotate documents by 90/180/270 degrees.
 
-- **Image tools**
-  - **Convert format**: Convert images between PNG, JPG, and WebP.
-  - **Extract text (OCR)**: Use Tesseract.js and pdf.js to extract text from images and PDFs.
+### 🖼️ Image & OCR Tools
+- **Smart OCR**: Extract text from images and PDFs using Tesseract.js. Features an intelligent fallback for **scanned PDFs** without a text layer.
+- **Universal Converter**: Convert between PNG, JPG, and WebP formats with optimized quality.
 
-- **Video tools**
-  - **Convert video**: Change video format (MP4, WebM, AVI) using FFmpeg compiled to WebAssembly.
-  - **Trim video**: Cut clips between a start and end time, fully in the browser.
+### 🎬 Video Processing (WebAssembly)
+- **Format Conversion**: Change video formats (MP4, WebM, AVI) locally using FFmpeg WASM.
+- **Precision Trimming**: Cut video clips with millisecond precision directly in your browser.
 
-- **Archive tools**
-  - **Create ZIP**: Compress all queued files into a downloadable ZIP archive.
-  - **Extract ZIP**: Extract files from ZIP archives (case‑insensitive `.zip` detection).
-
-- **User experience**
-  - **Drag‑and‑drop uploads** plus traditional file picker.
-  - **Queue management** (add, remove, clear) with file type badges.
-  - **Global progress bar** and status messages for long‑running tasks.
-  - **Responsive layout** optimized for both desktop and mobile browsers.
-  - **No login, no accounts, no tracking.**
+### 📦 Archive Management
+- **ZIP Creation**: Compress multiple queued files into a single archive.
+- **ZIP Extraction**: Unpack archives and download individual contents instantly.
 
 ---
 
 ## 🔒 Privacy & Security
 
-- All processing happens **locally in your browser** using Web APIs and WebAssembly.  
-- Files are **never uploaded** to any backend server or third party.  
-- You can safely use ToolGhor with **sensitive PDFs, images, and videos** as long as you trust your own device.
-
-> If you are building on top of ToolGhor, make sure any new features preserve this client‑side privacy guarantee.
-
----
-
-## 🧰 Tech Stack
-
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **PDF processing**: `pdf-lib`, `pdfjs-dist`
-- **File download helper**: `FileSaver.js`
-- **OCR**: `Tesseract.js`
-- **Video processing**: `@ffmpeg/ffmpeg` (WebAssembly build)
-- **Archiving**: `JSZip`
-
-All dependencies are loaded via CDN and run in the browser; there is no backend server.
+Most online file tools require you to upload your documents to their servers. **ToolGhor changes that.**
+- **Zero Uploads**: All processing happens in your browser's RAM via Web Workers and WebAssembly.
+- **Secure by Design**: Ideal for sensitive documents, contracts, and private media.
+- **No Tracking**: No accounts, no cookies, no telemetry.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## 🚀 Tech Stack
 
-You can run ToolGhor locally as a static website.
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/shejanahmmed/ToolGhor.git
-cd ToolGhor
-```
-
-### 2. Open in your browser
-
-You can either:
-
-- Open `index.html` directly in your browser, **or**
-- Serve the folder with a simple static server, for example:
-
-```bash
-# Using Python 3
-python -m http.server 8000
-
-# Then open in your browser:
-# http://localhost:8000
-```
-
-> Using a local server is recommended for the best experience with some browser security settings.
+ToolGhor leverages the power of modern Web APIs and specialized libraries:
+- **Core**: HTML5, CSS3 (Vanilla), JavaScript (ES6+)
+- **PDF Logic**: [pdf-lib](https://pdf-lib.js.org/) & [pdf.js](https://mozilla.github.io/pdf.js/)
+- **Video Engine**: [@ffmpeg/ffmpeg](https://ffmpegwasm.netlify.app/) (WebAssembly)
+- **OCR Engine**: [Tesseract.js](https://tesseract.projectnaptha.com/)
+- **Compression**: [JSZip](https://stuk.github.io/jszip/)
+- **UX**: Fuzzy search algorithm for tool discovery, Drag-and-Drop API, and Object URL memory management.
 
 ---
 
-## 🧪 Usage Overview
+## 🛠️ Local Development
 
-1. **Upload files**
-   - Drag and drop files into the upload area, or click “choose files” and then “Add to queue”.
-2. **Choose a tool**
-   - Pick the appropriate tool under **PDF Tools**, **Image Tools**, **Video Tools**, or **Archive Tools**.
-3. **Configure options (if needed)**
-   - For example, select the output format, page ranges, or video start/end times.
-4. **Run the tool**
-   - Watch the **progress bar** and **status text** for feedback.
-   - When finished, the browser will prompt you to **download** the resulting file(s).
+ToolGhor is a static web application. You can run it locally without any complex build steps.
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/shejanahmmed/ToolGhor.git
+   cd ToolGhor
+   ```
+
+2. **Serve the files**:
+   Since the app uses WebAssembly (FFmpeg), it is recommended to use a local server to handle COOP/COEP headers correctly:
+   ```bash
+   # Using Python
+   python -m http.server 8000
+   ```
+   *Then open `http://localhost:8000` in your browser.*
+
+---
+
+## 📖 Usage Guide
+
+1. **Add Files**: Drag and drop files into the dashboard or use the "Choose Files" button.
+2. **Search**: Use the search bar (top right) to quickly find the tool you need (e.g., type "merge" or "ocr").
+3. **Configure**: Set your parameters (rotation angle, output format, or trim timestamps).
+4. **Execute**: Click the tool button and monitor the real-time progress bar.
+5. **Download**: Once processed, your file will download automatically.
 
 ---
 
 ## 📄 License
 
-ToolGhor is open source and available under the **MIT License**.  
-See the `LICENSE` file for full license text.
-
-# ToolGhor — All in One File Utility Website
-
-**Live Website:**  
-👉 https://shejanahmmed.github.io/ToolGhor/
-
-ToolGhor is a fast lightweight and privacy friendly file utility website built with HTML CSS and JavaScript. All processing happens inside the user’s browser so no files are uploaded to any server.
+This project is licensed under the **MIT License**. Feel free to fork, modify, and use it for your own projects.
 
 ---
 
-## ✨ Features
-- Merge multiple PDF files into one  
-- Convert images to PDF  
-- Convert PDF to image  
-- Drag and drop upload  
-- Fully client side  
-- Works on mobile and desktop  
-- No login needed  
-
----
-
-## 🔒 Privacy
-ToolGhor is fully client side  
-Your files never leave your device or get uploaded anywhere.
-
----
-
-## 📁 Technologies Used
-- HTML5  
-- CSS3  
-- Vanilla JavaScript  
-- pdf-lib  
-- pdfjs-dist  
-- FileSaver.js  
-
----
-
-## 📄 License
-ToolGhor is open source and available under the MIT License. See the `LICENSE` file for details.
-
----
-
-## 🚀 How to Run Locally
-```bash
-git clone https://github.com/shejanahmmed/ToolGhor.git
-cd ToolGhor
-open index.html
+### 🌟 Credits
+Created by [Shejan Ahmmed](https://github.com/shejanahmmed). If you find this tool useful, please consider giving the repository a star!

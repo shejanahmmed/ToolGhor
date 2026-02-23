@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     .mission-grid {
       display: grid;
@@ -33,12 +34,27 @@
       margin-top: 16px;
     }
     .badge {
-      padding: 6px 12px;
+      padding: 8px 16px;
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .badge:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+    .badge i {
+      width: 16px;
+      height: 16px;
     }
     @media (max-width: 768px) {
       .mission-grid {
@@ -117,14 +133,37 @@
         <h3>Tech Stack</h3>
         <p>ToolGhor is built with transparency and performance in mind:</p>
         <div class="tech-badges">
-          <span class="badge">Vanilla JavaScript</span>
-          <span class="badge">WebAssembly (WASM)</span>
-          <span class="badge">pdf-lib</span>
-          <span class="badge">Tesseract.js</span>
-          <span class="badge">FFmpeg.wasm</span>
-          <span class="badge">JSZip</span>
-          <span class="badge">FileSaver.js</span>
-          <span class="badge">Inter Typeface</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="code-2"></i> Vanilla JavaScript</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="cpu"></i> WebAssembly</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="file-text"></i> pdf-lib</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="scan-text"></i> Tesseract.js</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="video"></i> FFmpeg.wasm</span>
+          <span class="badge" style="cursor: default;"><i data-lucide="archive"></i> JSZip</span>
+        </div>
+      </section>
+
+      <section>
+        <h3>Meet the Developer</h3>
+        <div class="mission-item" style="display: flex; flex-direction: column; align-items: center; text-align: center;">
+          <h4 style="margin-bottom: 0;">Farjan Ahmmed (Shejan)</h4>
+          
+          <div class="tech-badges" style="margin-top: 24px; justify-content: center;">
+            <a href="mailto:farjan.swe@gmail.com" class="badge">
+              <i data-lucide="mail"></i> Email
+            </a>
+            <a href="https://github.com/shejanahmmed" target="_blank" class="badge">
+              <i data-lucide="github"></i> GitHub
+            </a>
+            <a href="https://www.linkedin.com/in/farjan-ahmmed/" target="_blank" class="badge">
+              <i data-lucide="linkedin"></i> LinkedIn
+            </a>
+            <a href="https://www.facebook.com/beingshejan/" target="_blank" class="badge">
+              <i data-lucide="facebook"></i> Facebook
+            </a>
+            <a href="https://www.instagram.com/iamshejan/" target="_blank" class="badge">
+              <i data-lucide="instagram"></i> Instagram
+            </a>
+          </div>
         </div>
       </section>
     </main>
@@ -157,6 +196,9 @@
   </footer>
 
   <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
     const hamburger = document.getElementById('hamburger');
     const mobileMenu = document.getElementById('mobileMenu');
     hamburger.addEventListener('click', () => {

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>About - ToolGhor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .mission-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-top: 32px;
+    }
+    .mission-item {
+      padding: 24px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .mission-item h4 {
+      margin-top: 0;
+      color: var(--accent);
+      font-weight: 400;
+    }
+    .tech-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .badge {
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    @media (max-width: 768px) {
+      .mission-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-content">
+      <a href="index.html" class="logo">
+        <span class="logo-text" style="opacity: 1;">ToolGhor</span>
+      </a>
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="index.html">Tools</a>
+          <a href="about.html">About</a>
+          <a href="support.html">Support</a>
+        </div>
+        <button class="hamburger" id="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+      <div class="mobile-menu" id="mobileMenu">
+        <a href="index.html">Tools</a>
+        <a href="about.html">About</a>
+        <a href="support.html">Support</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header>
+      <h1>About ToolGhor</h1>
+      <p class="small">The privacy-first utility suite for the modern web.</p>
+    </header>
+
+    <main class="card">
+      <section>
+        <h3>Our Mission</h3>
+        <p>ToolGhor was built on a simple premise: <strong>Your files should never leave your device.</strong> In an era where data privacy is increasingly fragile, we provide a suite of powerful tools that operate entirely within your browser's local environment.</p>
+        
+        <div class="mission-grid">
+          <div class="mission-item">
+            <h4>Privacy First</h4>
+            <p>Traditional "online" tools upload your PDFs, images, and videos to their servers. ToolGhor uses WebAssembly and modern Web APIs to process everything locally. No uploads. No leaks.</p>
+          </div>
+          <div class="mission-item">
+            <h4>No Barriers</h4>
+            <p>We believe in tools that just work. No accounts, no subscriptions, and no tracking. Just open the page, add your files, and get the job done instantly.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3>How It Works</h3>
+        <p>ToolGhor leverages the latest in browser technology to bring desktop-class performance to the web:</p>
+        <div class="step">
+          <strong>WebAssembly (WASM)</strong>
+          <p>We use FFmpeg compiled to WASM to handle complex video conversion and trimming directly in your browser's memory.</p>
+        </div>
+        <div class="step">
+          <strong>Local PDF Engine</strong>
+          <p>Using <code>pdf-lib</code> and <code>pdf.js</code>, we can manipulate, merge, and render PDF documents without any server-side processing.</p>
+        </div>
+        <div class="step">
+          <strong>On-Device OCR</strong>
+          <p>Text extraction is powered by <code>Tesseract.js</code>, which runs optical character recognition locally, ensuring your documents remain private.</p>
+        </div>
+      </section>
+
+      <section>
+        <h3>Tech Stack</h3>
+        <p>ToolGhor is built with transparency and performance in mind:</p>
+        <div class="tech-badges">
+          <span class="badge">Vanilla JavaScript</span>
+          <span class="badge">WebAssembly (WASM)</span>
+          <span class="badge">pdf-lib</span>
+          <span class="badge">Tesseract.js</span>
+          <span class="badge">FFmpeg.wasm</span>
+          <span class="badge">JSZip</span>
+          <span class="badge">FileSaver.js</span>
+          <span class="badge">Inter Typeface</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="main-footer">
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Product</h4>
+        <a href="index.html#tools">PDF Tools</a>
+        <a href="https://github.com/shejanahmmed/ToolGhor#privacy" target="_blank">Privacy</a>
+        <a href="https://github.com/shejanahmmed/ToolGhor#security" target="_blank">Security</a>
+      </div>
+      <div class="footer-section">
+        <h4>Support</h4>
+        <a href="support.html">Help Center</a>
+        <a href="mailto:support@toolghor.example">Contact</a>
+        <a href="https://github.com/shejanahmmed/ToolGhor/issues" target="_blank">Feedback</a>
+      </div>
+      <div class="footer-section">
+        <h4>ToolGhor</h4>
+        <a href="about.html">About</a>
+        <a href="https://github.com/shejanahmmed/ToolGhor" target="_blank">GitHub</a>
+        <a href="LICENSE" target="_blank">License</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p class="small">© 2025 ToolGhor. All processing happens locally in your browser.</p>
+    </div>
+  </footer>
+
+  <script>
+    const hamburger = document.getElementById('hamburger');
+    const mobileMenu = document.getElementById('mobileMenu');
+    hamburger.addEventListener('click', () => {
+      mobileMenu.style.display = mobileMenu.style.display === 'block' ? 'none' : 'block';
+    });
+  </script>
+</body>
+</html>

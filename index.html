@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <meta name="google-site-verification" content="5WK4uZ7iNHdvjG1Aee__yoyNBgE_j1XWmE5CdaNiRJQ" />
 </head>
 <body>
   <nav class="navbar">
@@ -51,7 +52,7 @@
   <div class="wrap">
     <header id="about">
       <h1>ToolGhor</h1>
-      <p class="small">PDF Tools • Image Converter • OCR • Video Tools • ZIP Manager</p>
+      <p class="small">PDF Tools • Image Converter • OCR • ZIP Manager</p>
     </header>
 
     <main class="card" id="tools">
@@ -60,7 +61,7 @@
         <div id="drop" class="drop" tabindex="0">
           <div style="margin-bottom:8px; font-size:16px; font-weight:300;">Drop files here</div>
           <label for="fileInput" class="accent-link">or choose files</label>
-          <input id="fileInput" type="file" multiple accept="application/pdf,image/*,video/*,application/zip" />
+          <input id="fileInput" type="file" multiple accept="application/pdf,image/*,application/zip" />
         </div>
 
         <div class="controls">
@@ -92,31 +93,6 @@
             </select>
           </div>
           <button id="extractText">Extract Text (OCR)</button>
-        </div>
-
-        <h3>Video Tools</h3>
-        <div class="actions">
-          <div class="tool-group">
-            <button id="convertVideo">Convert Video</button>
-            <select id="videoFormat" class="format-select">
-              <option value="mp4">MP4</option>
-              <option value="webm">WebM</option>
-              <option value="avi">AVI</option>
-            </select>
-          </div>
-          <div class="video-trim-section">
-            <button id="trimVideo">Trim Video</button>
-            <div class="time-inputs">
-              <div class="time-group">
-                <label>Start</label>
-                <input type="time" id="startTime" step="1" value="00:00:00">
-              </div>
-              <div class="time-group">
-                <label>End</label>
-                <input type="time" id="endTime" step="1" value="00:01:00">
-              </div>
-            </div>
-          </div>
         </div>
 
         <h3>Archive Tools</h3>
@@ -166,7 +142,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script src="https://unpkg.com/tesseract.js@4/dist/tesseract.min.js"></script>
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
   <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="script.js"></script>
 </body>

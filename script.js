@@ -10,7 +10,6 @@ const prog = document.getElementById('prog');
 const searchInput = document.getElementById('searchInput');
 
 let queue = [];
-let ffmpeg = null;
 
 // Tool definitions for search
 const tools = [
@@ -22,8 +21,6 @@ const tools = [
   { id: 'reorderPdfPages', name: 'Reorder Pages', keywords: ['reorder', 'rearrange', 'pdf', 'pages', 'sort'] },
   { id: 'convertImage', name: 'Convert Format', keywords: ['convert', 'image', 'format', 'png', 'jpg', 'webp'] },
   { id: 'extractText', name: 'Extract Text (OCR)', keywords: ['extract', 'text', 'ocr', 'read', 'scan'] },
-  { id: 'convertVideo', name: 'Convert Video', keywords: ['convert', 'video', 'format', 'mp4', 'webm', 'avi'] },
-  { id: 'trimVideo', name: 'Trim Video', keywords: ['trim', 'cut', 'video', 'clip', 'edit'] },
   { id: 'createZip', name: 'Create ZIP', keywords: ['create', 'zip', 'archive', 'compress'] },
   { id: 'extractZip', name: 'Extract ZIP', keywords: ['extract', 'unzip', 'decompress', 'archive'] }
 ];
@@ -64,14 +61,14 @@ function filterTools(matchedTools) {
 
   // Hide all sections and actions initially
   sections.forEach(s => {
-    if (['PDF Tools', 'Image Tools', 'Video Tools', 'Archive Tools'].includes(s.textContent)) {
+    if (['PDF Tools', 'Image Tools', 'Archive Tools'].includes(s.textContent)) {
       s.style.display = 'none';
     }
   });
   actionsDivs.forEach(a => a.style.display = 'none');
 
   // Hide all buttons and specialized containers
-  document.querySelectorAll('.actions > button, .tool-group, .video-trim-section').forEach(el => {
+  document.querySelectorAll('.actions > button, .tool-group').forEach(el => {
     el.style.display = 'none';
   });
 
@@ -79,11 +76,9 @@ function filterTools(matchedTools) {
     const btn = document.getElementById(tool.id);
     if (btn) {
       // Show the button or its container
-      let container = btn.closest('.tool-group') || btn.closest('.video-trim-section') || btn;
+      let container = btn.closest('.tool-group') || btn;
       
-      if (container.classList.contains('video-trim-section')) {
-        container.style.display = 'flex';
-      } else if (container.classList.contains('tool-group')) {
+      if (container.classList.contains('tool-group')) {
         container.style.display = 'flex';
       } else {
         container.style.display = 'inline-block';
@@ -157,19 +152,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Initialize FFmpeg
-async function initFFmpeg() {
-  if (typeof FFmpegWASM === 'undefined') {
-    throw new Error('FFmpeg library not loaded. Please check your internet connection and refresh.');
-  }
-  if (!ffmpeg) {
-    const { FFmpeg } = FFmpegWASM;
-    ffmpeg = new FFmpeg();
-    await ffmpeg.load();
-  }
-  return ffmpeg;
-}
-
 // Update file queue display
 function renderQueue() {
   fileList.innerHTML = '';
@@ -178,7 +160,6 @@ function renderQueue() {
     row.className = 'row';
     const type = f.type.includes('pdf') ? 'PDF' : 
                 f.type.includes('image') ? 'IMG' :
-                f.type.includes('video') ? 'VID' :
                 f.type.includes('zip') ? 'ZIP' : 'FILE';
     row.innerHTML = `
       <div>
@@ -685,113 +666,6 @@ document.getElementById('extractText').addEventListener('click', async () => {
     saveAs(blob, 'extracted_text.txt');
 
     setStatus('Text extraction complete');
-    setProgress(100);
-  } catch (err) {
-    console.error(err);
-    setStatus(`Error: ${err.message}`);
-  }
-});
-
-// Video Tools
-document.getElementById('convertVideo').addEventListener('click', async () => {
-  try {
-    const videos = queue.filter(f => f.type.startsWith('video/'));
-    if (!videos.length) {
-      setStatus('No videos in queue');
-      return;
-    }
-
-    const format = document.getElementById('videoFormat').value;
-
-    setStatus('Initializing video converter...');
-    setProgress(5);
-
-    const ffmpegInstance = await initFFmpeg();
-    
-    for (const f of videos) {
-      setStatus(`Converting ${f.name}...`);
-      
-      const inputName = `input.${f.name.split('.').pop()}`;
-      const outputName = `output.${format}`;
-      
-      await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
-      await ffmpegInstance.exec(['-i', inputName, outputName]);
-      
-      const data = await ffmpegInstance.readFile(outputName);
-      const blob = new Blob([data.buffer], { type: `video/${format}` });
-      saveAs(blob, f.name.replace(/\.[^.]+$/, `.${format}`));
-      
-      await ffmpegInstance.deleteFile(inputName);
-      await ffmpegInstance.deleteFile(outputName);
-    }
-
-    setStatus('Video conversion complete');
-    setProgress(100);
-  } catch (err) {
-    console.error(err);
-    setStatus(`Error: ${err.message}`);
-  }
-});
-
-function timeToSeconds(timeStr) {
-  if (!timeStr) return 0;
-  const parts = timeStr.split(':').map(Number);
-  if (parts.length === 3) {
-    return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  } else if (parts.length === 2) {
-    return parts[0] * 60 + parts[1];
-  }
-  return 0;
-}
-
-document.getElementById('trimVideo').addEventListener('click', async () => {
-  try {
-    const videos = queue.filter(f => f.type.startsWith('video/'));
-    if (!videos.length) {
-      setStatus('No videos in queue');
-      return;
-    }
-
-    const startTimeStr = document.getElementById('startTime').value;
-    const endTimeStr = document.getElementById('endTime').value;
-    
-    if (!startTimeStr || !endTimeStr) {
-      setStatus('Please set start and end times');
-      return;
-    }
-    
-    const startSeconds = timeToSeconds(startTimeStr);
-    const endSeconds = timeToSeconds(endTimeStr);
-    const duration = endSeconds - startSeconds;
-    
-    if (duration <= 0 || isNaN(duration)) {
-      setStatus('End time must be after start time');
-      return;
-    }
-
-    setStatus('Initializing video trimmer...');
-    setProgress(5);
-
-    const ffmpegInstance = await initFFmpeg();
-    
-    for (const f of videos) {
-      setStatus(`Trimming ${f.name}...`);
-      
-      const inputName = `input.${f.name.split('.').pop()}`;
-      const outputName = `trimmed.${f.name.split('.').pop()}`;
-      
-      await ffmpegInstance.writeFile(inputName, new Uint8Array(await f.arrayBuffer()));
-      await ffmpegInstance.exec(['-i', inputName, '-ss', startTimeStr, '-t', duration.toString(), '-c', 'copy', outputName]);
-      
-      const data = await ffmpegInstance.readFile(outputName);
-      const blob = new Blob([data.buffer], { type: f.type });
-      saveAs(blob, `trimmed_${f.name}`);
-      
-      await ffmpegInstance.deleteFile(inputName);
-      await ffmpegInstance.deleteFile(outputName);
-    }
-
-    setStatus('Video trimming complete');
     setProgress(100);
   } catch (err) {
     console.error(err);

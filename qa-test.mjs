@@ -55,7 +55,7 @@ async function runQATests() {
 
     // 2. Verify main UI sections
     log('2. Verifying main UI sections...');
-    const sections = ['Upload Files', 'PDF Tools', 'Image Tools', 'Video Tools', 'Archive Tools', 'Progress'];
+    const sections = ['Upload Files', 'PDF Tools', 'Image Tools', 'Archive Tools', 'Progress'];
     for (const sec of sections) {
       const found = await page.locator(`text=${sec}`).first().isVisible();
       if (found) results.passed.push(`Section visible: ${sec}`);
@@ -64,7 +64,7 @@ async function runQATests() {
 
     // 3. Verify buttons
     const buttons = ['Merge PDFs', 'Images → PDF', 'PDF → Images', 'Rotate PDF', 'Delete Pages', 'Reorder Pages',
-      'Convert Format', 'Extract Text (OCR)', 'Convert Video', 'Trim Video', 'Create ZIP', 'Extract ZIP'];
+      'Convert Format', 'Extract Text (OCR)', 'Create ZIP', 'Extract ZIP'];
     for (const btn of buttons) {
       const found = await page.locator(`button:has-text("${btn}")`).first().isVisible().catch(() => false);
       if (found) results.passed.push(`Button visible: ${btn}`);

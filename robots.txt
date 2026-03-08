@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shejanahmmed.github.io/ToolGhor/sitemap.xml
